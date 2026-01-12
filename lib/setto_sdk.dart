@@ -16,13 +16,11 @@ enum SettoEnvironment {
 }
 
 class SettoConfig {
-  final String merchantId;
   final SettoEnvironment environment;
   final String? idpToken; // IdP 토큰 (있으면 자동로그인)
   final bool debug;
 
   SettoConfig({
-    required this.merchantId,
     required this.environment,
     this.idpToken,
     this.debug = false,
@@ -91,7 +89,7 @@ class SettoSDK {
   /// SDK 초기화
   void initialize(SettoConfig config) {
     _config = config;
-    _debugLog('Initialized with merchantId: ${config.merchantId}');
+    _debugLog('Initialized with environment: ${config.environment}');
   }
 
   /// 결제 요청
@@ -100,6 +98,7 @@ class SettoSDK {
   /// - IdP Token 없음: Setto 로그인 필요
   /// - IdP Token 있음: PaymentToken 발급 후 자동로그인
   Future<PaymentResult> openPayment({
+    required String merchantId,
     required String amount,
     String? orderId,
   }) async {
@@ -114,12 +113,12 @@ class SettoSDK {
     if (config.idpToken != null) {
       // IdP Token 있음 → PaymentToken 발급 → Fragment로 전달
       _debugLog('Requesting PaymentToken...');
-      return _requestPaymentTokenAndOpen(config, amount, orderId);
+      return _requestPaymentTokenAndOpen(config, merchantId, amount, orderId);
     } else {
       // IdP Token 없음 → Query param으로 직접 전달
       final uri = Uri.parse('${config.environment.baseURL}/pay/wallet').replace(
         queryParameters: {
-          'merchant_id': config.merchantId,
+          'merchant_id': merchantId,
           'amount': amount,
           if (orderId != null) 'order_id': orderId,
         },
@@ -132,6 +131,7 @@ class SettoSDK {
 
   Future<PaymentResult> _requestPaymentTokenAndOpen(
     SettoConfig config,
+    String merchantId,
     String amount,
     String? orderId,
   ) async {
@@ -141,10 +141,10 @@ class SettoSDK {
       );
 
       final body = {
-        'merchantId': config.merchantId,
+        'merchant_id': merchantId,
         'amount': amount,
-        if (orderId != null) 'orderId': orderId,
-        'idpToken': config.idpToken,
+        if (orderId != null) 'order_id': orderId,
+        'idp_token': config.idpToken,
       };
 
       final response = await http.post(
@@ -162,7 +162,7 @@ class SettoSDK {
       }
 
       final json = jsonDecode(response.body);
-      final paymentToken = json['paymentToken'] as String;
+      final paymentToken = json['payment_token'] as String;
 
       // Fragment로 전달 (보안: 서버 로그에 남지 않음)
       final encodedToken = Uri.encodeComponent(paymentToken);
@@ -182,7 +182,10 @@ class SettoSDK {
   }
 
   /// 결제 상태 조회
-  Future<PaymentInfo> getPaymentInfo({required String paymentId}) async {
+  Future<PaymentInfo> getPaymentInfo({
+    required String merchantId,
+    required String paymentId,
+  }) async {
     final config = _config;
     if (config == null) {
       throw Exception('SDK not initialized');
@@ -194,7 +197,7 @@ class SettoSDK {
 
     final response = await http.get(
       uri,
-      headers: {'X-Merchant-ID': config.merchantId},
+      headers: {'X-Merchant-ID': merchantId},
     );
 
     if (response.statusCode != 200) {
