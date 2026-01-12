@@ -17,12 +17,10 @@ enum SettoEnvironment {
 
 class SettoConfig {
   final SettoEnvironment environment;
-  final String? idpToken; // IdP 토큰 (있으면 자동로그인)
   final bool debug;
 
   SettoConfig({
     required this.environment,
-    this.idpToken,
     this.debug = false,
   });
 }
@@ -94,13 +92,17 @@ class SettoSDK {
 
   /// 결제 요청
   ///
-  /// IdP Token 유무에 따라 자동로그인 여부가 결정됩니다.
+  /// 항상 PaymentToken을 발급받아서 결제 페이지로 전달합니다.
   /// - IdP Token 없음: Setto 로그인 필요
-  /// - IdP Token 있음: PaymentToken 발급 후 자동로그인
+  /// - IdP Token 있음: 자동로그인
+  ///
+  /// [merchantId] 머천트 ID
+  /// [amount] 결제 금액
+  /// [idpToken] IdP 토큰 (선택, 있으면 자동로그인)
   Future<PaymentResult> openPayment({
     required String merchantId,
     required String amount,
-    String? orderId,
+    String? idpToken,
   }) async {
     final config = _config;
     if (config == null) {
@@ -110,42 +112,28 @@ class SettoSDK {
       );
     }
 
-    if (config.idpToken != null) {
-      // IdP Token 있음 → PaymentToken 발급 → Fragment로 전달
-      _debugLog('Requesting PaymentToken...');
-      return _requestPaymentTokenAndOpen(config, merchantId, amount, orderId);
-    } else {
-      // IdP Token 없음 → Query param으로 직접 전달
-      final uri = Uri.parse('${config.environment.baseURL}/pay/wallet').replace(
-        queryParameters: {
-          'merchant_id': merchantId,
-          'amount': amount,
-          if (orderId != null) 'order_id': orderId,
-        },
-      );
-
-      _debugLog('Opening payment with Setto login: $uri');
-      return _openCustomTabs(uri);
-    }
+    _debugLog('Requesting PaymentToken...');
+    return _requestPaymentTokenAndOpen(config, merchantId, amount, idpToken);
   }
 
   Future<PaymentResult> _requestPaymentTokenAndOpen(
     SettoConfig config,
     String merchantId,
     String amount,
-    String? orderId,
+    String? idpToken,
   ) async {
     try {
       final tokenUri = Uri.parse(
         '${config.environment.baseURL}/api/external/payment/token',
       );
 
-      final body = {
+      final body = <String, String>{
         'merchant_id': merchantId,
         'amount': amount,
-        if (orderId != null) 'order_id': orderId,
-        'idp_token': config.idpToken,
       };
+      if (idpToken != null) {
+        body['idp_token'] = idpToken;
+      }
 
       final response = await http.post(
         tokenUri,
@@ -170,7 +158,7 @@ class SettoSDK {
         '${config.environment.baseURL}/pay/wallet#pt=$encodedToken',
       );
 
-      _debugLog('Opening payment with auto-login');
+      _debugLog('Opening payment page');
       return _openCustomTabs(uri);
     } catch (e) {
       _debugLog('PaymentToken request error: $e');
