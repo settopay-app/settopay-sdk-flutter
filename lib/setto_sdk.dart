@@ -31,12 +31,27 @@ class PaymentResult {
   final PaymentStatus status;
   final String? paymentId;
   final String? txHash;
+  /// 결제자 지갑 주소 (서버에서 반환)
+  final String? fromAddress;
+  /// 결산 수신자 주소 (pool이 아닌 최종 수신자, 서버에서 반환)
+  final String? toAddress;
+  /// 결제 금액 (USD, 예: "10.00", 서버에서 반환)
+  final String? amount;
+  /// 체인 ID (예: 8453, 56, 900001, 서버에서 반환)
+  final int? chainId;
+  /// 토큰 심볼 (예: "USDC", "USDT", 서버에서 반환)
+  final String? tokenSymbol;
   final String? error;
 
   PaymentResult({
     required this.status,
     this.paymentId,
     this.txHash,
+    this.fromAddress,
+    this.toAddress,
+    this.amount,
+    this.chainId,
+    this.tokenSymbol,
     this.error,
   });
 }
@@ -206,6 +221,12 @@ class SettoSDK {
     final statusString = uri.queryParameters['status'] ?? '';
     final paymentId = uri.queryParameters['payment_id'];
     final txHash = uri.queryParameters['tx_hash'];
+    final fromAddress = uri.queryParameters['from_address'];
+    final toAddress = uri.queryParameters['to_address'];
+    final amount = uri.queryParameters['amount'];
+    final chainIdStr = uri.queryParameters['chain_id'];
+    final chainId = chainIdStr != null ? int.tryParse(chainIdStr) : null;
+    final tokenSymbol = uri.queryParameters['token_symbol'];
     final errorMsg = uri.queryParameters['error'];
 
     PaymentStatus status;
@@ -224,6 +245,11 @@ class SettoSDK {
       status: status,
       paymentId: paymentId,
       txHash: txHash,
+      fromAddress: fromAddress,
+      toAddress: toAddress,
+      amount: amount,
+      chainId: chainId,
+      tokenSymbol: tokenSymbol,
       error: errorMsg,
     );
 
