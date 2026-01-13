@@ -1,6 +1,6 @@
 name: setto_sdk
 description: Setto External SDK for Flutter - Integrate Setto payments into your Flutter application
-version: 0.1.4
+version: 0.1.5
 homepage: https://settopay.com
 
 environment:

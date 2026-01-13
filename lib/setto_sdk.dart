@@ -8,11 +8,14 @@ import 'package:http/http.dart' as http;
 // MARK: - Types
 
 enum SettoEnvironment {
-  dev('https://dev-wallet.settopay.com'),
-  prod('https://wallet.settopay.com');
+  dev('https://dev-wallet.settopay.com', 'https://dev-app.settopay.com'),
+  prod('https://wallet.settopay.com', 'https://app.settopay.com');
 
-  final String baseURL;
-  const SettoEnvironment(this.baseURL);
+  /// API 서버 (백엔드 gRPC-Gateway)
+  final String apiURL;
+  /// 웹앱 (프론트엔드 결제 페이지)
+  final String webAppURL;
+  const SettoEnvironment(this.apiURL, this.webAppURL);
 }
 
 class SettoConfig {
@@ -139,7 +142,7 @@ class SettoSDK {
   ) async {
     try {
       final tokenUri = Uri.parse(
-        '${config.environment.baseURL}/api/external/payment/token',
+        '${config.environment.apiURL}/api/external/payment/token',
       );
 
       final body = <String, String>{
@@ -170,7 +173,7 @@ class SettoSDK {
       // Fragment로 전달 (보안: 서버 로그에 남지 않음)
       final encodedToken = Uri.encodeComponent(paymentToken);
       final uri = Uri.parse(
-        '${config.environment.baseURL}/pay/wallet#pt=$encodedToken',
+        '${config.environment.webAppURL}/pay/wallet#pt=$encodedToken',
       );
 
       _debugLog('Opening payment page');
@@ -195,7 +198,7 @@ class SettoSDK {
     }
 
     final uri = Uri.parse(
-      '${config.environment.baseURL}/api/external/payment/$paymentId',
+      '${config.environment.apiURL}/api/external/payment/$paymentId',
     );
 
     final response = await http.get(
